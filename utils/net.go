@@ -6,22 +6,20 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/goccy/go-json"
-	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"runtime/debug"
 	"strings"
-	"time"
-)
 
-var maxTimeout = 30 * time.Minute
+	"github.com/goccy/go-json"
+	"golang.org/x/net/proxy"
+)
 
 func newClient(c []globals.ProxyConfig) *http.Client {
 	client := &http.Client{
-		Timeout: maxTimeout,
+		Timeout: globals.HttpMaxTimeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
@@ -183,6 +181,28 @@ func GetRaw(uri string, headers map[string]string, config ...globals.ProxyConfig
 func Post(uri string, headers map[string]string, body interface{}, config ...globals.ProxyConfig) (data interface{}, err error) {
 	err = Http(uri, http.MethodPost, &data, headers, ConvertBody(body), config)
 	return data, err
+}
+
+func ToString(data interface{}) string {
+	switch v := data.(type) {
+	case string:
+		return v
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32, float64:
+		return fmt.Sprintf("%f", v)
+	case bool:
+		return fmt.Sprintf("%t", v)
+	default:
+		data := Marshal(data)
+		if len(data) > 0 {
+			return data
+		}
+
+		return fmt.Sprintf("%v", data)
+	}
 }
 
 func PostRaw(uri string, headers map[string]string, body interface{}, config ...globals.ProxyConfig) (data string, err error) {

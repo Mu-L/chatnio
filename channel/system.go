@@ -63,25 +63,30 @@ type mailState struct {
 	WhiteList whiteList `json:"white_list" mapstructure:"whitelist"`
 }
 
-type searchState struct {
-	Endpoint string `json:"endpoint" mapstructure:"endpoint"`
-	Query    int    `json:"query" mapstructure:"query"`
+type SearchState struct {
+	Endpoint   string   `json:"endpoint" mapstructure:"endpoint"`
+	Crop       bool     `json:"crop" mapstructure:"crop"`
+	CropLen    int      `json:"crop_len" mapstructure:"croplen"`
+	Engines    []string `json:"engines" mapstructure:"engines"`
+	ImageProxy bool     `json:"image_proxy" mapstructure:"imageproxy"`
+	SafeSearch int      `json:"safe_search" mapstructure:"safesearch"`
 }
 
 type commonState struct {
-	Article    []string `json:"article" mapstructure:"article"`
-	Generation []string `json:"generation" mapstructure:"generation"`
-	Cache      []string `json:"cache" mapstructure:"cache"`
-	Expire     int64    `json:"expire" mapstructure:"expire"`
-	Size       int64    `json:"size" mapstructure:"size"`
-	ImageStore bool     `json:"image_store" mapstructure:"imagestore"`
+	Article     []string `json:"article" mapstructure:"article"`
+	Generation  []string `json:"generation" mapstructure:"generation"`
+	Cache       []string `json:"cache" mapstructure:"cache"`
+	Expire      int64    `json:"expire" mapstructure:"expire"`
+	Size        int64    `json:"size" mapstructure:"size"`
+	ImageStore  bool     `json:"image_store" mapstructure:"imagestore"`
+	PromptStore bool     `json:"prompt_store" mapstructure:"promptstore"`
 }
 
 type SystemConfig struct {
 	General generalState `json:"general" mapstructure:"general"`
 	Site    siteState    `json:"site" mapstructure:"site"`
 	Mail    mailState    `json:"mail" mapstructure:"mail"`
-	Search  searchState  `json:"search" mapstructure:"search"`
+	Search  SearchState  `json:"search" mapstructure:"search"`
 	Common  commonState  `json:"common" mapstructure:"common"`
 }
 
@@ -110,9 +115,18 @@ func (c *SystemConfig) Load() {
 	globals.CacheAcceptedSize = c.GetCacheAcceptedSize()
 	globals.AcceptImageStore = c.AcceptImageStore()
 
+	globals.AcceptPromptStore = c.Common.PromptStore
+
 	if c.General.PWAManifest == "" {
 		c.General.PWAManifest = utils.ReadPWAManifest()
 	}
+
+	globals.SearchEndpoint = c.Search.Endpoint
+	globals.SearchCrop = c.Search.Crop
+	globals.SearchCropLength = c.GetSearchCropLength()
+	globals.SearchEngines = c.GetSearchEngines()
+	globals.SearchImageProxy = c.GetImageProxy()
+	globals.SearchSafeSearch = c.Search.SafeSearch
 }
 
 func (c *SystemConfig) SaveConfig() error {
@@ -220,27 +234,25 @@ func (c *SystemConfig) SendVerifyMail(email string, code string) error {
 	)
 }
 
-func (c *SystemConfig) GetSearchEndpoint() string {
-	if len(c.Search.Endpoint) == 0 {
-		return "https://duckduckgo-api.vercel.app"
+func (c *SystemConfig) GetSearchCropLength() int {
+	if c.Search.CropLen <= 0 {
+		return 1000
 	}
 
-	endpoint := c.Search.Endpoint
-	if strings.HasSuffix(endpoint, "/search") {
-		return endpoint[:len(endpoint)-7]
-	} else if strings.HasSuffix(endpoint, "/") {
-		return endpoint[:len(endpoint)-1]
-	}
-
-	return endpoint
+	return c.Search.CropLen
 }
 
-func (c *SystemConfig) GetSearchQuery() int {
-	if c.Search.Query <= 0 {
-		return 5
+func (c *SystemConfig) GetSearchEngines() string {
+	return strings.Join(c.Search.Engines, ",")
+}
+
+func (c *SystemConfig) GetImageProxy() string {
+	// return "True" or "False"
+	if c.Search.ImageProxy {
+		return "True"
 	}
 
-	return c.Search.Query
+	return "False"
 }
 
 func (c *SystemConfig) GetAppName() string {
